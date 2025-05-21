@@ -1,0 +1,95 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.simulation-container {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+canvas {
+    background-color: #f9f9f9;
+    display: block;
+    margin: 0 auto;
+}
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.control-panel {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+.ranges {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.range-container {
+    display: flex;
+    align-items: center;
+}
+.range-container label {
+    width: 150px;
+}
+.range-container span {
+    width: 50px;
+    text-align: right;
+    margin-left: 10px;
+}
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.stats div {
+    min-width: 180px;
+}
+button {
+    padding: 8px 16px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+}
+button:hover {
+    background-color: #45a049;
+}
+.charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+@media (max-width: 768px) {
+    .charts {
+        grid-template-columns: 1fr;
+    }
+}
+.fuzzy-visualization {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-top: 20px;
+}
+.membership-functions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 10px;
+}
+.membership-function {
+    flex: 1;
+    min-width: 200px;
+}
