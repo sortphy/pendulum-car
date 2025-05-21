@@ -1,4 +1,4 @@
-import { fuzzyControl } from './fuzzy.js';
+import { fuzzyControl, fuzzyControlCar } from './fuzzy.js';
 
 
 const canvas = document.getElementById("canvas");
@@ -52,7 +52,10 @@ function draw() {
 function step() {
   if (!running) return;
 
-  const F = fuzzyControl(theta, thetaDot);
+    const F1 = fuzzyControl(theta, thetaDot);
+    const F2 = fuzzyControlCar(x, xDot);
+    const F = F1 + F2;
+
 
 
   // Cálculo temporário

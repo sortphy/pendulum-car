@@ -61,3 +61,39 @@ function N(x) {
     return somaPesos === 0 ? 0 : somaForcas / somaPesos;
   }
   
+
+  // Sistema Fuzzy para o carrinho (posição x e velocidade ẋ)
+export function fuzzyControlCar(x, xDot) {
+    // Fuzzificação: função de pertinência
+    const xN = N(x);
+    const xZ = Z(x);
+    const xP = P(x);
+  
+    const xDotN = N(xDot);
+    const xDotZ = Z(xDot);
+    const xDotP = P(xDot);
+  
+    // Regras fuzzy para posição e velocidade do carrinho (do PDF)
+    const regras = [
+      { peso: Math.min(xN, xDotN), forca: FORCAS.forteDir },   // 1
+      { peso: Math.min(xN, xDotZ), forca: FORCAS.dir },        // 2
+      { peso: Math.min(xN, xDotP), forca: FORCAS.nada },       // 3
+      { peso: Math.min(xZ, xDotN), forca: FORCAS.dir * 0.5 },  // 4 (levemente direita)
+      { peso: Math.min(xZ, xDotZ), forca: FORCAS.nada },       // 5
+      { peso: Math.min(xZ, xDotP), forca: FORCAS.esq * 0.5 },  // 6 (levemente esquerda)
+      { peso: Math.min(xP, xDotN), forca: FORCAS.nada },       // 7
+      { peso: Math.min(xP, xDotZ), forca: FORCAS.esq },        // 8
+      { peso: Math.min(xP, xDotP), forca: FORCAS.forteEsq },   // 9
+    ];
+  
+    // Defuzzificação: média ponderada
+    let somaPesos = 0;
+    let somaForcas = 0;
+    for (const r of regras) {
+      somaPesos += r.peso;
+      somaForcas += r.peso * r.forca;
+    }
+  
+    return somaPesos === 0 ? 0 : somaForcas / somaPesos;
+  }
+  
