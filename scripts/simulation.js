@@ -52,9 +52,17 @@ function draw() {
 function step() {
   if (!running) return;
 
-    const F1 = fuzzyControl(theta, thetaDot);
-    const F2 = fuzzyControlCar(x, xDot);
-    const F = F1 + F2;
+    let F = 0;
+
+    if (document.getElementById("enableFIS1").checked) {
+        F += fuzzyControl(theta, thetaDot);
+    }
+    
+    if (document.getElementById("enableFIS2").checked) {
+        F += fuzzyControlCar(x, xDot);
+    }
+  
+  
 
 
 
