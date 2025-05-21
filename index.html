@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulação do Pêndulo Invertido</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Simulador de Pêndulo Invertido</h1>
+
+  <div class="controls">
+    <label>Ângulo inicial (°):
+        <input type="range" id="theta" min="-10" max="10" value="2">
+      <span id="thetaVal">15</span>
+    </label>
+
+    <label>Velocidade angular inicial:
+      <input type="range" id="thetaDot" min="-10" max="10" value="0" step="0.1">
+      <span id="thetaDotVal">0</span>
+    </label>
+
+    <label>Posição do carrinho:
+      <input type="range" id="x" min="-2" max="2" value="0" step="0.1">
+      <span id="xVal">0</span>
+    </label>
+
+    <label>Velocidade do carrinho:
+      <input type="range" id="xDot" min="-5" max="5" value="0" step="0.1">
+      <span id="xDotVal">0</span>
+    </label>
+
+    <div class="buttons">
+      <button id="startBtn">▶️ Iniciar</button>
+      <button id="resetBtn">🔁 Resetar</button>
+    </div>
+  </div>
+
+  <canvas id="canvas" width="800" height="400"></canvas>
+
+  <script src="scripts/simulation.js"></script>
+</body>
+</html>
