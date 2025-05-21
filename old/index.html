@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inverted Pendulum Fuzzy Logic Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .simulation-container {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            background-color: #f9f9f9;
+            display: block;
+            margin: 0 auto;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .control-panel {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .ranges {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .range-container {
+            display: flex;
+            align-items: center;
+        }
+        .range-container label {
+            width: 150px;
+        }
+        .range-container span {
+            width: 50px;
+            text-align: right;
+            margin-left: 10px;
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .stats div {
+            min-width: 180px;
+        }
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .charts {
+                grid-template-columns: 1fr;
+            }
+        }
+        .fuzzy-visualization {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        .membership-functions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .membership-function {
+            flex: 1;
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Inverted Pendulum Fuzzy Logic Controller</h1>
+        
+        <div class="control-panel">
+            <h2>Simulation Controls</h2>
+            <div class="controls">
+                <button id="startBtn">Start</button>
+                <button id="stopBtn">Stop</button>
+                <button id="resetBtn">Reset</button>
+                <button id="perturbBtn">Apply Perturbation</button>
+            </div>
+            
+            <div class="ranges">
+                <div class="range-container">
+                    <label for="initialAngle">Initial Angle (rad):</label>
+                    <input type="range" id="initialAngle" min="-0.5" max="0.5" step="0.01" value="0.1">
+                    <span id="initialAngleValue">0.1</span>
+                </div>
+                <div class="range-container">
+                    <label for="perturbForce">Perturbation Force (N):</label>
+                    <input type="range" id="perturbForce" min="-20" max="20" step="0.5" value="5">
+                    <span id="perturbForceValue">5</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="simulation-container">
+            <canvas id="simulationCanvas" width="800" height="300"></canvas>
+            
+            <div class="stats">
+                <div>
+                    <h3>Pendulum</h3>
+                    <p>Angle: <span id="angle">0</span> rad</p>
+                    <p>Angular Velocity: <span id="angularVelocity">0</span> rad/s</p>
+                </div>
+                <div>
+                    <h3>Cart</h3>
+                    <p>Position: <span id="position">0</span> m</p>
+                    <p>Velocity: <span id="velocity">0</span> m/s</p>
+                </div>
+                <div>
+                    <h3>Control</h3>
+                    <p>Applied Force: <span id="force">0</span> N</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="charts">
+            <div>
+                <h3>Pendulum Angle</h3>
+                <canvas id="angleChart" width="400" height="200"></canvas>
+            </div>
+            <div>
+                <h3>Cart Position</h3>
+                <canvas id="positionChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="fuzzy-visualization">
+            <h2>Fuzzy Logic System</h2>
+            <div class="membership-functions">
+                <div class="membership-function">
+                    <h3>Angle Membership</h3>
+                    <canvas id="angleMembership" width="300" height="150"></canvas>
+                </div>
+                <div class="membership-function">
+                    <h3>Angular Velocity Membership</h3>
+                    <canvas id="angularVelocityMembership" width="300" height="150"></canvas>
+                </div>
+                <div class="membership-function">
+                    <h3>Position Membership</h3>
+                    <canvas id="positionMembership" width="300" height="150"></canvas>
+                </div>
+                <div class="membership-function">
+                    <h3>Velocity Membership</h3>
+                    <canvas id="velocityMembership" width="300" height="150"></canvas>
+                </div>
+            </div>
+            <div class="membership-function">
+                <h3>Force Output Membership</h3>
+                <canvas id="forceMembership" width="600" height="150"></canvas>
+            </div>
+            <div class="membership-function">
+                <h3>Defuzzification Result</h3>
+                <canvas id="defuzzification" width="600" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // System parameters
+        const params = {
+            l: 0.3,         // pendulum length (m)
+            mc: 0.5,        // cart mass (kg)
+            mp: 0.2,        // pendulum mass (kg)
+            g: 9.8,         // gravity (m/s^2)
+            J: 0.006,       // moment of inertia (kg.m^2)
+            dt: 0.01,       // simulation time step (s)
+            xMin: -2,       // minimum cart position (m)
+            xMax: 2,        // maximum cart position (m)
+            maxForce: 20,   // maximum force (N)
+        };
+
+        // State variables
+        const state = {
+            theta: 0.1,     // pendulum angle (rad)
+            thetaDot: 0,    // angular velocity (rad/s)
+            x: 0,           // cart position (m)
+            xDot: 0,        // cart velocity (m/s)
+            force: 0,       // applied force (N)
+            time: 0,        // simulation time (s)
+            running: false, // simulation running flag
+            history: {      // history for plotting
+                time: [],
+                theta: [],
+                x: [],
+                force: []
+            }
+        };
+
+        // UI Elements
+        const elements = {
+            simulationCanvas: document.getElementById('simulationCanvas'),
+            angleChart: document.getElementById('angleChart'),
+            positionChart: document.getElementById('positionChart'),
+            angleMembership: document.getElementById('angleMembership'),
+            angularVelocityMembership: document.getElementById('angularVelocityMembership'),
+            positionMembership: document.getElementById('positionMembership'),
+            velocityMembership: document.getElementById('velocityMembership'),
+            forceMembership: document.getElementById('forceMembership'),
+            defuzzification: document.getElementById('defuzzification'),
+            startBtn: document.getElementById('startBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            perturbBtn: document.getElementById('perturbBtn'),
+            initialAngle: document.getElementById('initialAngle'),
+            initialAngleValue: document.getElementById('initialAngleValue'),
+            perturbForce: document.getElementById('perturbForce'),
+            perturbForceValue: document.getElementById('perturbForceValue'),
+            angle: document.getElementById('angle'),
+            angularVelocity: document.getElementById('angularVelocity'),
+            position: document.getElementById('position'),
+            velocity: document.getElementById('velocity'),
+            force: document.getElementById('force')
+        };
+
+        // Canvas contexts
+        const ctx = {
+            simulation: elements.simulationCanvas.getContext('2d'),
+            angleChart: elements.angleChart.getContext('2d'),
+            positionChart: elements.positionChart.getContext('2d'),
+            angleMembership: elements.angleMembership.getContext('2d'),
+            angularVelocityMembership: elements.angularVelocityMembership.getContext('2d'),
+            positionMembership: elements.positionMembership.getContext('2d'),
+            velocityMembership: elements.velocityMembership.getContext('2d'),
+            forceMembership: elements.forceMembership.getContext('2d'),
+            defuzzification: elements.defuzzification.getContext('2d')
+        };
+
+        // Fuzzy Logic System
+        const fuzzy = {
+            // Membership functions
+            membershipFunctions: {
+                angle: {
+                    N: (x) => trapezoid(x, -Infinity, -Infinity, -0.1, 0),      // Negative (left)
+                    Z: (x) => triangle(x, -0.1, 0, 0.1),                         // Zero (vertical)
+                    P: (x) => trapezoid(x, 0, 0.1, Infinity, Infinity)          // Positive (right)
+                },
+                angularVelocity: {
+                    N: (x) => trapezoid(x, -Infinity, -Infinity, -0.5, 0),      // Negative (moving left)
+                    Z: (x) => triangle(x, -0.5, 0, 0.5),                         // Zero (not moving)
+                    P: (x) => trapezoid(x, 0, 0.5, Infinity, Infinity)          // Positive (moving right)
+                },
+                position: {
+                    N: (x) => trapezoid(x, -Infinity, -Infinity, -0.5, 0),      // Left
+                    Z: (x) => triangle(x, -0.5, 0, 0.5),                         // Center
+                    P: (x) => trapezoid(x, 0, 0.5, Infinity, Infinity)          // Right
+                },
+                velocity: {
+                    N: (x) => trapezoid(x, -Infinity, -Infinity, -0.5, 0),      // Moving left
+                    Z: (x) => triangle(x, -0.5, 0, 0.5),                         // Not moving
+                    P: (x) => trapezoid(x, 0, 0.5, Infinity, Infinity)          // Moving right
+                },
+                force: {
+                    NL: (x) => trapezoid(x, -20, -20, -15, -10),                // Strong left
+                    NM: (x) => triangle(x, -15, -10, -5),                        // Medium left
+                    NS: (x) => triangle(x, -10, -5, 0),                          // Slight left
+                    ZE: (x) => triangle(x, -5, 0, 5),                            // Zero
+                    PS: (x) => triangle(x, 0, 5, 10),                            // Slight right
+                    PM: (x) => triangle(x, 5, 10, 15),                           // Medium right
+                    PL: (x) => trapezoid(x, 10, 15, 20, 20)                     // Strong right
+                }
+            },
+            
+            // Fuzzify inputs
+            fuzzify(input, type) {
+                const result = {};
+                const mf = this.membershipFunctions[type];
+                
+                for (const key in mf) {
+                    result[key] = mf[key](input);
+                }
+                
+                return result;
+            },
+            
+            // Pendulum control rules
+            pendulumRules(angle, angularVelocity) {
+                // Degree of membership for inputs
+                const angleDOM = this.fuzzify(angle, 'angle');
+                const angularVelocityDOM = this.fuzzify(angularVelocity, 'angularVelocity');
+                
+                // Rule strengths using MIN for AND
+                const ruleStrengths = {
+                    // IF pendulum is left AND moving left THEN push cart strong left
+                    NL: Math.min(angleDOM.N, angularVelocityDOM.N),
+                    
+                    // IF pendulum is left AND not moving THEN push cart left
+                    NM: Math.min(angleDOM.N, angularVelocityDOM.Z),
+                    
+                    // IF pendulum is left AND moving right THEN don't push
+                    ZE1: Math.min(angleDOM.N, angularVelocityDOM.P),
+                    
+                    // IF pendulum is vertical AND moving left THEN push cart slight left
+                    NS: Math.min(angleDOM.Z, angularVelocityDOM.N),
+                    
+                    // IF pendulum is vertical AND not moving THEN don't push
+                    ZE2: Math.min(angleDOM.Z, angularVelocityDOM.Z),
+                    
+                    // IF pendulum is vertical AND moving right THEN push cart slight right
+                    PS: Math.min(angleDOM.Z, angularVelocityDOM.P),
+                    
+                    // IF pendulum is right AND moving left THEN don't push
+                    ZE3: Math.min(angleDOM.P, angularVelocityDOM.N),
+                    
+                    // IF pendulum is right AND not moving THEN push cart right
+                    PM: Math.min(angleDOM.P, angularVelocityDOM.Z),
+                    
+                    // IF pendulum is right AND moving right THEN push cart strong right
+                    PL: Math.min(angleDOM.P, angularVelocityDOM.P)
+                };
+                
+                return {
+                    NL: ruleStrengths.NL,
+                    NM: ruleStrengths.NM,
+                    NS: ruleStrengths.NS,
+                    ZE: Math.max(ruleStrengths.ZE1, ruleStrengths.ZE2, ruleStrengths.ZE3),
+                    PS: ruleStrengths.PS,
+                    PM: ruleStrengths.PM,
+                    PL: ruleStrengths.PL
+                };
+            },
+            
+            // Cart position control rules
+            cartRules(position, velocity) {
+                // Degree of membership for inputs
+                const positionDOM = this.fuzzify(position, 'position');
+                const velocityDOM = this.fuzzify(velocity, 'velocity');
+                
+                // Rule strengths using MIN for AND
+                const ruleStrengths = {
+                    // IF cart is left AND moving left THEN push cart strong right
+                    PL: Math.min(positionDOM.N, velocityDOM.N),
+                    
+                    // IF cart is left AND not moving THEN push cart right
+                    PM: Math.min(positionDOM.N, velocityDOM.Z),
+                    
+                    // IF cart is left AND moving right THEN don't push
+                    ZE1: Math.min(positionDOM.N, velocityDOM.P),
+                    
+                    // IF cart is center AND moving left THEN push cart slight right
+                    PS: Math.min(positionDOM.Z, velocityDOM.N),
+                    
+                    // IF cart is center AND not moving THEN don't push
+                    ZE2: Math.min(positionDOM.Z, velocityDOM.Z),
+                    
+                    // IF cart is center AND moving right THEN push cart slight left
+                    NS: Math.min(positionDOM.Z, velocityDOM.P),
+                    
+                    // IF cart is right AND moving left THEN don't push
+                    ZE3: Math.min(positionDOM.P, velocityDOM.N),
+                    
+                    // IF cart is right AND not moving THEN push cart left
+                    NM: Math.min(positionDOM.P, velocityDOM.Z),
+                    
+                    // IF cart is right AND moving right THEN push cart strong left
+                    NL: Math.min(positionDOM.P, velocityDOM.P)
+                };
+                
+                return {
+                    NL: ruleStrengths.NL,
+                    NM: ruleStrengths.NM,
+                    NS: ruleStrengths.NS,
+                    ZE: Math.max(ruleStrengths.ZE1, ruleStrengths.ZE2, ruleStrengths.ZE3),
+                    PS: ruleStrengths.PS,
+                    PM: ruleStrengths.PM,
+                    PL: ruleStrengths.PL
+                };
+            },
+            
+            // Combine rule outputs and defuzzify
+            defuzzify(pendulumRuleStrengths, cartRuleStrengths) {
+                // Combine rules (take max for each output)
+                const combinedRuleStrengths = {
+                    NL: Math.max(pendulumRuleStrengths.NL, cartRuleStrengths.NL),
+                    NM: Math.max(pendulumRuleStrengths.NM, cartRuleStrengths.NM),
+                    NS: Math.max(pendulumRuleStrengths.NS, cartRuleStrengths.NS),
+                    ZE: Math.max(pendulumRuleStrengths.ZE, cartRuleStrengths.ZE),
+                    PS: Math.max(pendulumRuleStrengths.PS, cartRuleStrengths.PS),
+                    PM: Math.max(pendulumRuleStrengths.PM, cartRuleStrengths.PM),
+                    PL: Math.max(pendulumRuleStrengths.PL, cartRuleStrengths.PL)
+                };
+                
+                // Weighted average defuzzification
+                // Use the center of each output membership function
+                const centers = {
+                    NL: -17.5,  // Center of NL trapezoid
+                    NM: -10,    // Center of NM triangle
+                    NS: -5,     // Center of NS triangle
+                    ZE: 0,      // Center of ZE triangle
+                    PS: 5,      // Center of PS triangle
+                    PM: 10,     // Center of PM triangle
+                    PL: 17.5    // Center of PL trapezoid
+                };
+                
+                let numerator = 0;
+                let denominator = 0;
+                
+                for (const key in combinedRuleStrengths) {
+                    numerator += centers[key] * combinedRuleStrengths[key];
+                    denominator += combinedRuleStrengths[key];
+                }
+                
+                // Avoid division by zero
+                if (denominator === 0) {
+                    return 0;
+                }
+                
+                return numerator / denominator;
+            },
+            
+            // Calculate control force based on current state
+            calculateForce(angle, angularVelocity, position, velocity) {
+                const pendulumRuleStrengths = this.pendulumRules(angle, angularVelocity);
+                const cartRuleStrengths = this.cartRules(position, velocity);
+                
+                // Defuzzify to get crisp force value
+                let force = this.defuzzify(pendulumRuleStrengths, cartRuleStrengths);
+                
+                // Limit force to max value
+                force = Math.max(-params.maxForce, Math.min(params.maxForce, force));
+                
+                // Store values for visualization
+                this.currentValues = {
+                    angle,
+                    angularVelocity,
+                    position,
+                    velocity,
+                    pendulumRuleStrengths,
+                    cartRuleStrengths,
+                    force
+                };
+                
+                return force;
+            }
+        };
+
+        // Membership function shapes
+        function triangle(x, a, b, c) {
+            if (x <= a || x >= c) return 0;
+            if (x === b) return 1;
+            if (x < b) return (x - a) / (b - a);
+            return (c - x) / (c - b);
+        }
+
+        function trapezoid(x, a, b, c, d) {
+            if (x <= a || x >= d) return 0;
+            if (x >= b && x <= c) return 1;
+            if (x < b) return (x - a) / (b - a);
+            return (d - x) / (d - c);
+        }
+
+        // System dynamics
+        function updateSystem() {
+            // Save old state for RK4 integration
+            const oldState = { ...state };
+            
+            // Get control force from fuzzy logic controller
+            state.force = fuzzy.calculateForce(state.theta, state.thetaDot, state.x, state.xDot);
+            
+            // Update state using 4th order Runge-Kutta integration
+            const k1 = calculateDerivatives(oldState);
+            
+            const midState1 = {
+                theta: oldState.theta + k1.thetaDot * params.dt / 2,
+                thetaDot: oldState.thetaDot + k1.thetaDotDot * params.dt / 2,
+                x: oldState.x + k1.xDot * params.dt / 2,
+                xDot: oldState.xDot + k1.xDotDot * params.dt / 2,
+                force: oldState.force
+            };
+            const k2 = calculateDerivatives(midState1);
+            
+            const midState2 = {
+                theta: oldState.theta + k2.thetaDot * params.dt / 2,
+                thetaDot: oldState.thetaDot + k2.thetaDotDot * params.dt / 2,
+                x: oldState.x + k2.xDot * params.dt / 2,
+                xDot: oldState.xDot + k2.xDotDot * params.dt / 2,
+                force: oldState.force
+            };
+            const k3 = calculateDerivatives(midState2);
+            
+            const endState = {
+                theta: oldState.theta + k3.thetaDot * params.dt,
+                thetaDot: oldState.thetaDot + k3.thetaDotDot * params.dt,
+                x: oldState.x + k3.xDot * params.dt,
+                xDot: oldState.xDot + k3.xDotDot * params.dt,
+                force: oldState.force
+            };
+            const k4 = calculateDerivatives(endState);
+            
+            // Update state with weighted average of slopes
+            state.theta += (k1.thetaDot + 2*k2.thetaDot + 2*k3.thetaDot + k4.thetaDot) * params.dt / 6;
+            state.thetaDot += (k1.thetaDotDot + 2*k2.thetaDotDot + 2*k3.thetaDotDot + k4.thetaDotDot) * params.dt / 6;
+            state.x += (k1.xDot + 2*k2.xDot + 2*k3.xDot + k4.xDot) * params.dt / 6;
+            state.xDot += (k1.xDotDot + 2*k2.xDotDot + 2*k3.xDotDot + k4.xDotDot) * params.dt / 6;
+            
+            // Keep angle in range [-π, π]
+            state.theta = (state.theta + Math.PI) % (2 * Math.PI) - Math.PI;
+            
+            // Constrain cart position to bounds
+            if (state.x < params.xMin) {
+                state.x = params.xMin;
+                state.xDot = 0; // Stop at boundary
+            } else if (state.x > params.xMax) {
+                state.x = params.xMax;
+                state.xDot = 0; // Stop at boundary
+            }
+            
+            // Update time
+            state.time += params.dt;
+            
+            // Store history for plotting (keep last 1000 points)
+            state.history.time.push(state.time);
+            state.history.theta.push(state.theta);
+            state.history.x.push(state.x);
+            state.history.force.push(state.force);
+            
+            if (state.history.time.length > 1000) {
+                state.history.time.shift();
+                state.history.theta.shift();
+                state.history.x.shift();
+                state.history.force.shift();
+            }
+        }
+
+        function calculateDerivatives(s) {
+            // Calculate derivatives based on system equations
+            const sinTheta = Math.sin(s.theta);
+            const cosTheta = Math.cos(s.theta);
+            
+            // Equation of motion for cart position
+            const xDotDot = (params.mp * (params.l * Math.pow(s.thetaDot, 2) * sinTheta - 
+                           params.g * sinTheta * cosTheta) + s.force) / 
+                           (params.mc + params.mp * Math.pow(sinTheta, 2));
+            
+            // Equation of motion for pendulum angle
+            const thetaDotDot = (params.mp * params.l * params.g * sinTheta - 
+                               params.mp * params.l * cosTheta * xDotDot) / 
+                               (params.J + params.mp * params.l * params.l);
+            
+            return {
+                thetaDot: s.thetaDot,
+                thetaDotDot: thetaDotDot,
+                xDot: s.xDot,
+                xDotDot: xDotDot
+            };
+        }
+
+        // Visualization functions
+        function drawSystem() {
+            const canvas = elements.simulationCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate drawing positions
+            const scale = 100; // pixels per meter
+            const cartWidth = 50;
+            const cartHeight = 30;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height - 50;
+            
+            // Draw track
+            ctx.beginPath();
+            ctx.moveTo(centerX - 300, centerY + cartHeight/2);
+            ctx.lineTo(centerX + 300, centerY + cartHeight/2);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
+            
+            // Draw cart
+            const cartX = centerX + state.x * scale;
+            
+            ctx.fillStyle = '#777';
+            ctx.fillRect(cartX - cartWidth/2, centerY - cartHeight/2, cartWidth, cartHeight);
+            
+            // Draw wheels
+            const wheelRadius = 5;
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(cartX - cartWidth/3, centerY + cartHeight/2, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(cartX + cartWidth/3, centerY + cartHeight/2, wheelRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Draw pendulum
+            const pendulumLength = params.l * scale;
+            const pendulumEndX = cartX + pendulumLength * Math.sin(state.theta);
+            const pendulumEndY = centerY - cartHeight/2 - pendulumLength * Math.cos(state.theta);
+            
+            ctx.beginPath();
+            ctx.moveTo(cartX, centerY - cartHeight/2);
+            ctx.lineTo(pendulumEndX, pendulumEndY);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+            
+            // Draw pendulum bob
+            const bobRadius = 10;
+            ctx.fillStyle = '#f00';
+            ctx.beginPath();
+            ctx.arc(pendulumEndX, pendulumEndY, bobRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Draw force arrow
+            if (state.force !== 0) {
+                const arrowLength = Math.min(Math.abs(state.force) * 2, 50);
+                const direction = state.force > 0 ? 1 : -1;
+                
+                ctx.beginPath();
+                ctx.moveTo(cartX, centerY);
+                ctx.lineTo(cartX - arrowLength * direction, centerY);
+                
+                // Arrow head
+                ctx.lineTo(cartX - (arrowLength - 5) * direction, centerY - 5);
+                ctx.moveTo(cartX - arrowLength * direction, centerY);
+                ctx.lineTo(cartX - (arrowLength - 5) * direction, centerY + 5);
+                
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#00f';
+                ctx.stroke();
+            }
+            
+            // Update stat display
+            elements.angle.textContent = state.theta.toFixed(3);
+            elements.angularVelocity.textContent = state.thetaDot.toFixed(3);
+            elements.position.textContent = state.x.toFixed(3);
+            elements.velocity.textContent = state.xDot.toFixed(3);
+            elements.force.textContent = state.force.toFixed(3);
+        }
+
+        function updateCharts() {
+            // Draw angle chart
+            const angleCtx = ctx.angleChart;
+            angleCtx.clearRect(0, 0, elements.angleChart.width, elements.angleChart.height);
+            
+            // Draw axes
+            angleCtx.beginPath();
+            angleCtx.moveTo(0, elements.angleChart.height / 2);
+            angleCtx.lineTo(elements.angleChart.width, elements.angleChart.height / 2);
+            angleCtx.strokeStyle = '#aaa';
+            angleCtx.stroke();
+            
+            // Plot angle
+            if (state.history.theta.length > 1) {
+                angleCtx.beginPath();
+                const timeScale = elements.angleChart.width / Math.min(10, state.history.time.length * params.dt);
+                const valueScale = elements.angleChart.height / 4; // Scale to fit ±π/2
+                
+                const startIndex = Math.max(0, state.history.theta.length - 1000);
+                const startTime = state.history.time[startIndex];
+                
+                angleCtx.moveTo(0, elements.angleChart.height / 2 - state.history.theta[startIndex] * valueScale);
+                
+                for (let i = startIndex + 1; i < state.history.theta.length; i++) {
+                    const x = (state.history.time[i] - startTime) * timeScale;
+                    const y = elements.angleChart.height / 2 - state.history.theta[i] * valueScale;
+                    angleCtx.lineTo(x, y);
+                }
+                
+                angleCtx.strokeStyle = '#f00';
+                angleCtx.lineWidth = 2;
+                angleCtx.stroke();
+            }
+            
+            // Draw position chart
+            const positionCtx = ctx.positionChart;
+            positionCtx.clearRect(0, 0, elements.positionChart.width, elements.positionChart.height);
+            
+            // Draw axes
+            positionCtx.beginPath();
+            positionCtx.moveTo(0, elements.positionChart.height / 2);
+            positionCtx.lineTo(elements.positionChart.width, elements.positionChart.height / 2);
+            positionCtx.strokeStyle = '#aaa';
+            positionCtx.stroke();
+            
+            // Plot position
+            if (state.history.x.length > 1) {
+                positionCtx.beginPath();
+                const timeScale = elements.positionChart.width / Math.min(10, state.history.time.length * params.dt);
+                const valueScale = elements.positionChart.height / (4 * (params.xMax - params.xMin)); // Scale to fit ±2m
+                
+                const startIndex = Math.max(0, state.history.x.length - 1000);
+                const startTime = state.history.time[startIndex];
+                
+                positionCtx.moveTo(0, elements.positionChart.height / 2 - state.history.x[startIndex] * valueScale);
+                
+                for (let i = startIndex + 1; i < state.history.x.length; i++) {
+                    const x = (state.history.time[i] - startTime) * timeScale;
+                    const y = elements.positionChart.height / 2 - state.history.x[i] * valueScale;
+                    positionCtx.lineTo(x, y);
+                }
+                
+                positionCtx.strokeStyle = '#00f';
+                positionCtx.lineWidth = 2;
+                positionCtx.stroke();
+            }
+        }
+
+        function drawMembershipFunctions() {
+            // Draw angle membership functions
+            drawMembershipFunction(
+                ctx.angleMembership, 
+                fuzzy.membershipFunctions.angle, 
+                -0.5, 0.5,
+                ['N', 'Z', 'P']
+            );
+            
+            // Draw angular velocity membership functions
+            drawMembershipFunction(
+                ctx.angularVelocityMembership, 
+                fuzzy.membershipFunctions.angularVelocity, 
+                -2, 2,
+                ['N', 'Z', 'P']
+            );
+            
+            // Draw position membership functions
+            drawMembershipFunction(
+                ctx.positionMembership, 
+                fuzzy.membershipFunctions.position, 
+                -2, 2,
+                ['N', 'Z', 'P']
+            );
+            
+            // Draw velocity membership functions
+            drawMembershipFunction(
+                ctx.velocityMembership, 
+                fuzzy.membershipFunctions.velocity, 
+                -2, 2,
+                ['N', 'Z', 'P']
+            );
+            
+            // Draw force membership functions
+            drawMembershipFunction(
+                ctx.forceMembership, 
+                fuzzy.membershipFunctions.force, 
+                -20, 20,
+                ['NL', 'NM', 'NS', 'ZE', 'PS', 'PM', 'PL']
+            );
+            
+            // Draw defuzzification visualization if we have current values
+            if (fuzzy.currentValues) {
+                drawDefuzzification(
+                    ctx.defuzzification,
+                    fuzzy.currentValues.pendulumRuleStrengths,
+                    fuzzy.currentValues.cartRuleStrengths,
+                    fuzzy.currentValues.force
+                );
+            }
+        }
+        
+        function drawMembershipFunction(context, membershipFunction, min, max, labels) {
+            const canvas = context.canvas;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 10;
+            
+            // Draw x-axis
+            context.beginPath();
+            context.moveTo(padding, height - padding);
+            context.lineTo(width - padding, height - padding);
+            context.strokeStyle = '#000';
+            context.lineWidth = 1;
+            context.stroke();
+            
+            // Draw zero line
+            const zeroX = padding + (0 - min) / (max - min) * (width - 2 * padding);
+            context.beginPath();
+            context.moveTo(zeroX, padding);
+            context.lineTo(zeroX, height - padding);
+            context.strokeStyle = '#aaa';
+            context.lineWidth = 1;
+            context.stroke();
+            
+            // Draw membership functions
+            const colors = {
+                NL: '#f00',
+                NM: '#f60',
+                NS: '#fa0',
+                N: '#f00',
+                ZE: '#0a0',
+                Z: '#0a0',
+                PS: '#0af',
+                PM: '#06f',
+                PL: '#00f',
+                P: '#00f'
+            };
+            
+            const steps = 100;
+            const stepSize = (max - min) / steps;
+            
+            for (const label of labels) {
+                context.beginPath();
+                
+                for (let i = 0; i <= steps; i++) {
+                    const x = min + i * stepSize;
+                    const xPos = padding + (i / steps) * (width - 2 * padding);
+                    const value = membershipFunction[label](x);
+                    const yPos = height - padding - value * (height - 2 * padding);
+                    
+                    if (i === 0) {
+                        context.moveTo(xPos, yPos);
+                    } else {
+                        context.lineTo(xPos, yPos);
+                    }
+                }
+                
+                context.strokeStyle = colors[label];
+                context.lineWidth = 2;
+                context.stroke();
+                
+                // Label the function
+                const x = min + (labels.indexOf(label) + 0.5) * (max - min) / labels.length;
+                const xPos = padding + ((x - min) / (max - min)) * (width - 2 * padding);
+                context.fillStyle = colors[label];
+                context.fillText(label, xPos, padding);
+            }
+            
+            // Add current input value if available
+            if (fuzzy.currentValues) {
+                let value;
+                
+                if (canvas === elements.angleMembership) {
+                    value = fuzzy.currentValues.angle;
+                } else if (canvas === elements.angularVelocityMembership) {
+                    value = fuzzy.currentValues.angularVelocity;
+                } else if (canvas === elements.positionMembership) {
+                    value = fuzzy.currentValues.position;
+                } else if (canvas === elements.velocityMembership) {
+                    value = fuzzy.currentValues.velocity;
+                } else if (canvas === elements.forceMembership) {
+                    value = fuzzy.currentValues.force;
+                }
+                
+                if (value !== undefined) {
+                    const xPos = padding + ((value - min) / (max - min)) * (width - 2 * padding);
+                    
+                    // Draw vertical line
+                    context.beginPath();
+                    context.moveTo(xPos, padding);
+                    context.lineTo(xPos, height - padding);
+                    context.strokeStyle = '#000';
+                    context.lineWidth = 1;
+                    context.setLineDash([2, 2]);
+                    context.stroke();
+                    context.setLineDash([]);
+                    
+                    // Display value
+                    context.fillStyle = '#000';
+                    context.fillText(value.toFixed(2), xPos + 2, height - 2);
+                }
+            }
+        }
+        
+        function drawDefuzzification(context, pendulumRuleStrengths, cartRuleStrengths, force) {
+            const canvas = context.canvas;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 10;
+            
+            const min = -20;
+            const max = 20;
+            
+            // Draw x-axis
+            context.beginPath();
+            context.moveTo(padding, height - padding);
+            context.lineTo(width - padding, height - padding);
+            context.strokeStyle = '#000';
+            context.lineWidth = 1;
+            context.stroke();
+            
+            // Draw zero line
+            const zeroX = padding + (0 - min) / (max - min) * (width - 2 * padding);
+            context.beginPath();
+            context.moveTo(zeroX, padding);
+            context.lineTo(zeroX, height - padding);
+            context.strokeStyle = '#aaa';
+            context.lineWidth = 1;
+            context.stroke();
+            
+            // Combine rule strengths
+            const combinedRuleStrengths = {
+                NL: Math.max(pendulumRuleStrengths.NL, cartRuleStrengths.NL),
+                NM: Math.max(pendulumRuleStrengths.NM, cartRuleStrengths.NM),
+                NS: Math.max(pendulumRuleStrengths.NS, cartRuleStrengths.NS),
+                ZE: Math.max(pendulumRuleStrengths.ZE, cartRuleStrengths.ZE),
+                PS: Math.max(pendulumRuleStrengths.PS, cartRuleStrengths.PS),
+                PM: Math.max(pendulumRuleStrengths.PM, cartRuleStrengths.PM),
+                PL: Math.max(pendulumRuleStrengths.PL, cartRuleStrengths.PL)
+            };
+            
+            // Draw clipped output membership functions
+            const colors = {
+                NL: '#f00',
+                NM: '#f60',
+                NS: '#fa0',
+                ZE: '#0a0',
+                PS: '#0af',
+                PM: '#06f',
+                PL: '#00f'
+            };
+            
+            const steps = 200;
+            const stepSize = (max - min) / steps;
+            
+            // Draw the clipped membership functions
+            for (const label in combinedRuleStrengths) {
+                const strength = combinedRuleStrengths[label];
+                
+                if (strength > 0) {
+                    context.beginPath();
+                    
+                    for (let i = 0; i <= steps; i++) {
+                        const x = min + i * stepSize;
+                        const xPos = padding + (i / steps) * (width - 2 * padding);
+                        
+                        // Get the membership value and clip it
+                        const value = Math.min(fuzzy.membershipFunctions.force[label](x), strength);
+                        const yPos = height - padding - value * (height - 2 * padding);
+                        
+                        if (i === 0) {
+                            context.moveTo(xPos, yPos);
+                        } else {
+                            context.lineTo(xPos, yPos);
+                        }
+                    }
+                    
+                    context.strokeStyle = colors[label];
+                    context.lineWidth = 1;
+                    context.stroke();
+                    
+                    // Fill the area under the curve
+                    context.lineTo(width - padding, height - padding);
+                    context.lineTo(padding, height - padding);
+                    context.closePath();
+                    context.fillStyle = colors[label] + '33'; // Add transparency
+                    context.fill();
+                }
+            }
+            
+            // Draw defuzzified result
+            const resultX = padding + ((force - min) / (max - min)) * (width - 2 * padding);
+            
+            // Draw vertical line
+            context.beginPath();
+            context.moveTo(resultX, padding);
+            context.lineTo(resultX, height - padding);
+            context.strokeStyle = '#000';
+            context.lineWidth = 2;
+            context.stroke();
+            
+            // Display value
+            context.fillStyle = '#000';
+            context.font = '12px Arial';
+            context.fillText('Output Force: ' + force.toFixed(2) + ' N', resultX + 5, padding + 15);
+        }
+
+        // Animation loop
+        function animate() {
+            if (state.running) {
+                updateSystem();
+                drawSystem();
+                updateCharts();
+                drawMembershipFunctions();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize UI controls
+        function initControls() {
+            // Start button
+            elements.startBtn.addEventListener('click', function() {
+                state.running = true;
+            });
+            
+            // Stop button
+            elements.stopBtn.addEventListener('click', function() {
+                state.running = false;
+            });
+            
+            // Reset button
+            elements.resetBtn.addEventListener('click', function() {
+                state.theta = parseFloat(elements.initialAngle.value);
+                state.thetaDot = 0;
+                state.x = 0;
+                state.xDot = 0;
+                state.force = 0;
+                state.time = 0;
+                
+                // Clear history
+                state.history = {
+                    time: [],
+                    theta: [],
+                    x: [],
+                    force: []
+                };
+                
+                drawSystem();
+                updateCharts();
+                drawMembershipFunctions();
+            });
+            
+            // Perturbation button
+            elements.perturbBtn.addEventListener('click', function() {
+                const perturbation = parseFloat(elements.perturbForce.value);
+                state.xDot += perturbation / params.mc;
+            });
+            
+            // Initial angle slider
+            elements.initialAngle.addEventListener('input', function() {
+                elements.initialAngleValue.textContent = this.value;
+                if (!state.running) {
+                    state.theta = parseFloat(this.value);
+                    drawSystem();
+                }
+            });
+            
+            // Perturbation force slider
+            elements.perturbForce.addEventListener('input', function() {
+                elements.perturbForceValue.textContent = this.value;
+            });
+        }
+
+        // Initialize the simulation
+        function init() {
+            // Initialize state
+            state.theta = parseFloat(elements.initialAngle.value);
+            
+            // Initialize controls
+            initControls();
+            
+            // Draw initial state
+            drawSystem();
+            drawMembershipFunctions();
+            
+            // Start animation loop
+            animate();
+        }
+
+        // Start the simulation when the page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
