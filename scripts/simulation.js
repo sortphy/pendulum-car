@@ -1,5 +1,7 @@
-import { fuzzyControl, fuzzyControlCar } from './fuzzy.js';
 
+
+import { fuzzyControl, fuzzyControlCar, setForcas } from './fuzzy.js';
+import { evolveForces } from './genetic.js';
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -107,7 +109,39 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   document.getElementById(id).addEventListener("input", updateSliders);
 });
 
+
+// ----- NOVO: expõe episódio rápido p/ GA -----
+export async function runEpisode(forces){      // avaliar cromossomo
+    if (forces) setForcas(forces);
+    // estado curto de teste
+    let _x=0,_xDot=0,_theta=0.1,_thetaDot=0, t=0, cost=0;
+    while (t < 3) {          // 3 s
+      // mesmo cálculo de F usando FIS
+      let F = fuzzyControl(_theta,_thetaDot)+fuzzyControlCar(_x,_xDot);
+      // física reduzida (igual step, sem desenho)
+      const tdTemp = calcThetaDotDot(0,_theta);
+      const xdd = calcXDotDot(F,_theta,_thetaDot,tdTemp);
+      const tdd = calcThetaDotDot(xdd,_theta);
+      _xDot+=h*xdd; _x+=h*_xDot;
+      _thetaDot+=h*tdd; _theta+=h*_thetaDot;
+      cost += Math.abs(_theta);   // penaliza ângulo
+      t += h;
+    }
+    return cost;                  // fitness (menor é melhor)
+  }
+  // -----------------------------------------------------------
+  
+  // ao carregar a página, lança GA e aplica melhor conjunto
+  (async ()=>{
+    const best = await evolveForces();
+    setForcas(best);
+    console.log('Forças otimizadas:', best.map(v=>v.toFixed(1)));
+  })();
+
 // Iniciar
 updateSliders();
 draw();
 setInterval(step, 20);
+
+
+

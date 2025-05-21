@@ -17,8 +17,8 @@ function N(x) {
     return x / 0.1;
   }
   
-  // Forças possíveis: em ordem de intensidade (negativo = esquerda, positivo = direita)
-  const FORCAS = {
+  // Forças fuzzy (podem ser otimizadas pelo GA)
+  let FORCAS = {
     forteEsq: -15,
     esq: -7,
     nada: 0,
@@ -26,9 +26,22 @@ function N(x) {
     forteDir: 15,
   };
   
-  // Exporta a função principal que será usada pela simulação
+  // Permite atualizar os valores das forças (usado pelo algoritmo genético)
+  export function setForcas(novas) {
+    [
+      FORCAS.forteEsq,
+      FORCAS.esq,
+      FORCAS.nada,
+      FORCAS.dir,
+      FORCAS.forteDir,
+    ] = novas;
+  }
+  
+  // Exporta também para uso interno do sim
+  export { FORCAS };
+  
+  // ---------------- FIS do pêndulo ----------------
   export function fuzzyControl(theta, thetaDot) {
-    // Fuzzificação: converte variáveis em graus de pertinência
     const thetaN = N(theta);
     const thetaZ = Z(theta);
     const thetaP = P(theta);
@@ -37,34 +50,23 @@ function N(x) {
     const thetaDotZ = Z(thetaDot);
     const thetaDotP = P(thetaDot);
   
-    // Regras do PDF (parte 1 – pêndulo)
     const regras = [
-      { peso: Math.min(thetaN, thetaDotN), forca: FORCAS.forteEsq },   // 1
-      { peso: Math.min(thetaN, thetaDotZ), forca: FORCAS.esq },        // 2
-      { peso: Math.min(thetaN, thetaDotP), forca: FORCAS.nada },       // 3
-      { peso: Math.min(thetaZ, thetaDotN), forca: FORCAS.esq * 0.5 },  // 4 (leve esquerda)
-      { peso: Math.min(thetaZ, thetaDotZ), forca: FORCAS.nada },       // 5
-      { peso: Math.min(thetaZ, thetaDotP), forca: FORCAS.dir * 0.5 },  // 6 (leve direita)
-      { peso: Math.min(thetaP, thetaDotN), forca: FORCAS.nada },       // 7
-      { peso: Math.min(thetaP, thetaDotZ), forca: FORCAS.dir },        // 8
-      { peso: Math.min(thetaP, thetaDotP), forca: FORCAS.forteDir },   // 9
+      { peso: Math.min(thetaN, thetaDotN), forca: FORCAS.forteEsq },
+      { peso: Math.min(thetaN, thetaDotZ), forca: FORCAS.esq },
+      { peso: Math.min(thetaN, thetaDotP), forca: FORCAS.nada },
+      { peso: Math.min(thetaZ, thetaDotN), forca: FORCAS.esq * 0.5 },
+      { peso: Math.min(thetaZ, thetaDotZ), forca: FORCAS.nada },
+      { peso: Math.min(thetaZ, thetaDotP), forca: FORCAS.dir * 0.5 },
+      { peso: Math.min(thetaP, thetaDotN), forca: FORCAS.nada },
+      { peso: Math.min(thetaP, thetaDotZ), forca: FORCAS.dir },
+      { peso: Math.min(thetaP, thetaDotP), forca: FORCAS.forteDir },
     ];
   
-    // Defuzzificação: weighted average
-    let somaPesos = 0;
-    let somaForcas = 0;
-    for (const r of regras) {
-      somaPesos += r.peso;
-      somaForcas += r.peso * r.forca;
-    }
-  
-    return somaPesos === 0 ? 0 : somaForcas / somaPesos;
+    return defuzzificar(regras);
   }
   
-
-  // Sistema Fuzzy para o carrinho (posição x e velocidade ẋ)
-export function fuzzyControlCar(x, xDot) {
-    // Fuzzificação: função de pertinência
+  // ---------------- FIS do carrinho ----------------
+  export function fuzzyControlCar(x, xDot) {
     const xN = N(x);
     const xZ = Z(x);
     const xP = P(x);
@@ -73,27 +75,29 @@ export function fuzzyControlCar(x, xDot) {
     const xDotZ = Z(xDot);
     const xDotP = P(xDot);
   
-    // Regras fuzzy para posição e velocidade do carrinho (do PDF)
     const regras = [
-      { peso: Math.min(xN, xDotN), forca: FORCAS.forteDir },   // 1
-      { peso: Math.min(xN, xDotZ), forca: FORCAS.dir },        // 2
-      { peso: Math.min(xN, xDotP), forca: FORCAS.nada },       // 3
-      { peso: Math.min(xZ, xDotN), forca: FORCAS.dir * 0.5 },  // 4 (levemente direita)
-      { peso: Math.min(xZ, xDotZ), forca: FORCAS.nada },       // 5
-      { peso: Math.min(xZ, xDotP), forca: FORCAS.esq * 0.5 },  // 6 (levemente esquerda)
-      { peso: Math.min(xP, xDotN), forca: FORCAS.nada },       // 7
-      { peso: Math.min(xP, xDotZ), forca: FORCAS.esq },        // 8
-      { peso: Math.min(xP, xDotP), forca: FORCAS.forteEsq },   // 9
+      { peso: Math.min(xN, xDotN), forca: FORCAS.forteDir },
+      { peso: Math.min(xN, xDotZ), forca: FORCAS.dir },
+      { peso: Math.min(xN, xDotP), forca: FORCAS.nada },
+      { peso: Math.min(xZ, xDotN), forca: FORCAS.dir * 0.5 },
+      { peso: Math.min(xZ, xDotZ), forca: FORCAS.nada },
+      { peso: Math.min(xZ, xDotP), forca: FORCAS.esq * 0.5 },
+      { peso: Math.min(xP, xDotN), forca: FORCAS.nada },
+      { peso: Math.min(xP, xDotZ), forca: FORCAS.esq },
+      { peso: Math.min(xP, xDotP), forca: FORCAS.forteEsq },
     ];
   
-    // Defuzzificação: média ponderada
+    return defuzzificar(regras);
+  }
+  
+  // ---------------- Utilitário de defuzzificação ----------------
+  function defuzzificar(regras) {
     let somaPesos = 0;
     let somaForcas = 0;
     for (const r of regras) {
       somaPesos += r.peso;
       somaForcas += r.peso * r.forca;
     }
-  
     return somaPesos === 0 ? 0 : somaForcas / somaPesos;
   }
   
