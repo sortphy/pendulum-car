@@ -1,3 +1,6 @@
+import { fuzzyControl } from './fuzzy.js';
+
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
@@ -49,7 +52,8 @@ function draw() {
 function step() {
   if (!running) return;
 
-  const F = 0; // Nenhum controle ainda
+  const F = fuzzyControl(theta, thetaDot);
+
 
   // Cálculo temporário
   const thetaDotDotTemp = calcThetaDotDot(0, theta);
